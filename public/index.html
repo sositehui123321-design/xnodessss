@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xnode</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          base: { 50: '#fafafa', 100: '#f2f2f0', 200: '#e8e7e4', 300: '#d6d4cf' },
+          ink: { 900: '#161615', 800: '#201f1e', 700: '#2b2a28', 600: '#3a3937', 400: '#8a8884' }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  * { scrollbar-width: thin; scrollbar-color: #d6d4cf transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  .msg-enter { animation: msgIn .28s ease both; }
+  @keyframes msgIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0);} }
+  .fade { transition: all .2s ease; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: #d6d4cf; border-radius: 8px; }
+  .dark ::-webkit-scrollbar-thumb { background: #3a3937; }
+</style>
+</head>
+<body class="h-screen w-screen overflow-hidden bg-base-50 text-ink-900 transition-colors duration-300" id="body">
+
+<!-- ===================== AUTH SCREEN ===================== -->
+<div id="authScreen" class="h-full w-full flex items-center justify-center px-4">
+  <div class="w-full max-w-sm bg-white/70 backdrop-blur-xl border border-base-200 rounded-3xl shadow-xl shadow-black/5 p-8 fade">
+    <div class="text-center mb-8">
+      <div class="w-12 h-12 mx-auto rounded-2xl bg-ink-900 flex items-center justify-center mb-4">
+        <span class="text-white font-semibold text-lg">X</span>
+      </div>
+      <h1 class="text-xl font-semibold">Xnode</h1>
+      <p class="text-ink-400 text-sm mt-1">Анонимный чат по комнатам</p>
+    </div>
+    <div class="flex bg-base-100 rounded-xl p-1 mb-6 text-sm font-medium">
+      <button id="tabLogin" class="flex-1 py-2 rounded-lg bg-white shadow-sm transition-all">Вход</button>
+      <button id="tabRegister" class="flex-1 py-2 rounded-lg text-ink-400 transition-all">Регистрация</button>
+    </div>
+    <div class="space-y-3">
+      <input id="authUsername" placeholder="Никнейм" class="w-full px-4 py-3 rounded-xl bg-base-100 border border-transparent focus:border-ink-900/20 focus:bg-white outline-none transition-all text-sm">
+      <input id="authPassword" type="password" placeholder="Пароль" class="w-full px-4 py-3 rounded-xl bg-base-100 border border-transparent focus:border-ink-900/20 focus:bg-white outline-none transition-all text-sm">
+      <p id="authError" class="text-red-500 text-xs hidden"></p>
+      <button id="authSubmit" class="w-full py-3 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-700 transition-all active:scale-[.98]">Войти</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP ===================== -->
+<div id="app" class="h-full w-full hidden flex">
+
+  <!-- SIDEBAR -->
+  <aside class="w-72 shrink-0 bg-white/60 border-r border-base-200 flex flex-col">
+    <div class="p-4 flex items-center justify-between border-b border-base-200">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-ink-900 flex items-center justify-center text-white font-semibold text-sm">X</div>
+        <span class="font-semibold">Xnode</span>
+      </div>
+      <button id="darkToggle" class="w-8 h-8 rounded-lg hover:bg-base-100 transition-all flex items-center justify-center text-ink-400" title="Тема">◐</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-3 space-y-1" id="roomList"></div>
+
+    <div id="adminAddRoom" class="hidden p-3 border-t border-base-200 space-y-2">
+      <input id="newRoomName" placeholder="Название комнаты" class="w-full px-3 py-2 text-sm rounded-lg bg-base-100 outline-none focus:bg-white border border-transparent focus:border-ink-900/20 transition-all">
+      <input id="newRoomDesc" placeholder="Описание (необязательно)" class="w-full px-3 py-2 text-sm rounded-lg bg-base-100 outline-none focus:bg-white border border-transparent focus:border-ink-900/20 transition-all">
+      <button id="createRoomBtn" class="w-full py-2 rounded-lg bg-ink-900 text-white text-xs font-medium hover:bg-ink-700 transition-all">+ Создать комнату</button>
+    </div>
+
+    <div class="p-3 border-t border-base-200 flex items-center gap-3">
+      <img id="myAvatar" src="" class="w-9 h-9 rounded-full object-cover bg-base-200 cursor-pointer" onerror="this.style.display='none'">
+      <div class="flex-1 min-w-0 cursor-pointer" id="openProfile">
+        <div class="text-sm font-medium truncate" id="myUsername"></div>
+        <div class="text-xs text-ink-400" id="myRole"></div>
+      </div>
+      <button id="logoutBtn" class="text-ink-400 hover:text-ink-900 transition-all text-xs">Выход</button>
+    </div>
+  </aside>
+
+  <!-- CHAT -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <div class="px-6 py-4 border-b border-base-200 bg-white/40 flex items-center justify-between">
+      <div>
+        <div class="font-semibold" id="currentRoomName">—</div>
+        <div class="text-xs text-ink-400" id="currentRoomDesc"></div>
+      </div>
+      <button id="deleteRoomBtn" class="hidden text-xs text-red-400 hover:text-red-600 transition-all">Удалить комнату</button>
+    </div>
+
+    <div id="messagesBox" class="flex-1 overflow-y-auto px-6 py-4 space-y-4"></div>
+
+    <div class="p-4 border-t border-base-200 bg-white/40">
+      <div id="attachPreview" class="hidden mb-2 flex items-center gap-2 text-xs text-ink-400"></div>
+      <div class="flex items-end gap-2">
+        <input type="file" id="fileInput" accept="image/*,video/*" class="hidden">
+        <button id="attachBtn" class="w-10 h-10 shrink-0 rounded-xl hover:bg-base-100 flex items-center justify-center text-ink-400 transition-all">📎</button>
+        <textarea id="msgInput" rows="1" placeholder="Сообщение..." class="flex-1 resize-none px-4 py-3 rounded-xl bg-base-100 border border-transparent focus:border-ink-900/20 focus:bg-white outline-none transition-all text-sm"></textarea>
+        <button id="sendBtn" class="w-10 h-10 shrink-0 rounded-xl bg-ink-900 text-white hover:bg-ink-700 transition-all flex items-center justify-center">➤</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ADMIN PANEL -->
+  <aside id="adminPanel" class="hidden w-80 shrink-0 border-l border-base-200 bg-white/60 flex flex-col">
+    <div class="p-4 border-b border-base-200 font-semibold text-sm">Админ-панель</div>
+    <div class="flex-1 overflow-y-auto p-3 space-y-2" id="usersList"></div>
+  </aside>
+</div>
+
+<!-- PROFILE MODAL -->
+<div id="profileModal" class="hidden fixed inset-0 bg-black/30 backdrop-blur-sm items-center justify-center z-50">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold">Профиль</h2>
+      <button id="closeProfile" class="text-ink-400 hover:text-ink-900 transition-all">✕</button>
+    </div>
+    <div class="flex flex-col items-center gap-2">
+      <img id="profileAvatarPreview" src="" class="w-20 h-20 rounded-full object-cover bg-base-200">
+      <button id="changeAvatarBtn" class="text-xs text-ink-400 hover:text-ink-900 transition-all">Сменить аватар</button>
+      <input type="file" id="avatarInput" accept="image/*" class="hidden">
+    </div>
+    <input id="profileUsername" class="w-full px-4 py-3 rounded-xl bg-base-100 border border-transparent focus:border-ink-900/20 outline-none text-sm transition-all">
+    <button id="saveProfileBtn" class="w-full py-3 rounded-xl bg-ink-900 text-white text-sm font-medium hover:bg-ink-700 transition-all">Сохранить</button>
+    <p id="profileMsg" class="text-xs text-center"></p>
+  </div>
+</div>
+
+<script>
+const API = '/api'
+let state = { token: localStorage.getItem('xnode_token') || null, user: null, rooms: [], currentRoom: null, lastMsgId: 0, pollTimer: null, pendingAttachment: null }
+
+function api(path, opts = {}) {
+  const headers = opts.headers || {}
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token
+  if (!(opts.body instanceof FormData) && opts.body) headers['Content-Type'] = 'application/json'
+  return fetch(API + path, { ...opts, headers }).then(async r => {
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(data.error || 'Ошибка')
+    return data
+  })
+}
+
+// ---------- AUTH ----------
+let authMode = 'login'
+document.getElementById('tabLogin').onclick = () => setAuthMode('login')
+document.getElementById('tabRegister').onclick = () => setAuthMode('register')
+function setAuthMode(m) {
+  authMode = m
+  document.getElementById('tabLogin').className = m === 'login' ? 'flex-1 py-2 rounded-lg bg-white shadow-sm transition-all' : 'flex-1 py-2 rounded-lg text-ink-400 transition-all'
+  document.getElementById('tabRegister').className = m === 'register' ? 'flex-1 py-2 rounded-lg bg-white shadow-sm transition-all' : 'flex-1 py-2 rounded-lg text-ink-400 transition-all'
+  document.getElementById('authSubmit').textContent = m === 'login' ? 'Войти' : 'Создать аккаунт'
+}
+
+document.getElementById('authSubmit').onclick = async () => {
+  const username = document.getElementById('authUsername').value.trim()
+  const password = document.getElementById('authPassword').value
+  const errEl = document.getElementById('authError')
+  errEl.classList.add('hidden')
+  try {
+    const data = await api('/' + authMode, { method: 'POST', body: JSON.stringify({ username, password }) })
+    state.token = data.token
+    state.user = data.user
+    localStorage.setItem('xnode_token', state.token)
+    enterApp()
+  } catch (e) {
+    errEl.textContent = e.message
+    errEl.classList.remove('hidden')
+  }
+}
+
+async function tryAutoLogin() {
+  if (!state.token) return
+  try {
+    const data = await api('/me')
+    state.user = data.user
+    enterApp()
+  } catch {
+    localStorage.removeItem('xnode_token')
+    state.token = null
+  }
+}
+
+document.getElementById('logoutBtn').onclick = () => {
+  localStorage.removeItem('xnode_token')
+  location.reload()
+}
+
+// ---------- APP ----------
+function enterApp() {
+  document.getElementById('authScreen').classList.add('hidden')
+  document.getElementById('app').classList.remove('flex').classList.remove('hidden')
+  document.getElementById('app').classList.add('flex')
+  document.getElementById('myUsername').textContent = state.user.username
+  document.getElementById('myRole').textContent = state.user.role === 'admin' ? 'Администратор' : 'Участник'
+  if (state.user.avatar_url) document.getElementById('myAvatar').src = state.user.avatar_url
+  if (state.user.role === 'admin') {
+    document.getElementById('adminAddRoom').classList.remove('hidden')
+    document.getElementById('adminPanel').classList.remove('hidden')
+    loadUsers()
+  }
+  loadRooms()
+}
+
+async function loadRooms() {
+  const data = await api('/rooms')
+  state.rooms = data.rooms
+  const list = document.getElementById('roomList')
+  list.innerHTML = ''
+  data.rooms.forEach(r => {
+    const btn = document.createElement('button')
+    btn.className = 'w-full text-left px-3 py-2.5 rounded-xl hover:bg-base-100 transition-all text-sm ' + (state.currentRoom?.id === r.id ? 'bg-base-100 font-medium' : '')
+    btn.innerHTML = `<div class="truncate">${escapeHtml(r.name)}</div>`
+    btn.onclick = () => selectRoom(r)
+    list.appendChild(btn)
+  })
+  if (!state.currentRoom && data.rooms.length) selectRoom(data.rooms[0])
+}
+
+function selectRoom(room) {
+  state.currentRoom = room
+  state.lastMsgId = 0
+  document.getElementById('currentRoomName').textContent = room.name
+  document.getElementById('currentRoomDesc').textContent = room.description || ''
+  document.getElementById('messagesBox').innerHTML = ''
+  document.getElementById('deleteRoomBtn').classList.toggle('hidden', state.user.role !== 'admin')
+  loadRooms()
+  clearInterval(state.pollTimer)
+  fetchMessages()
+  state.pollTimer = setInterval(fetchMessages, 2500)
+}
+
+document.getElementById('deleteRoomBtn').onclick = async () => {
+  if (!state.currentRoom) return
+  if (!confirm('Удалить комнату «' + state.currentRoom.name + '»?')) return
+  await api('/admin/rooms/' + state.currentRoom.id, { method: 'DELETE' })
+  state.currentRoom = null
+  loadRooms()
+}
+
+document.getElementById('createRoomBtn').onclick = async () => {
+  const name = document.getElementById('newRoomName').value.trim()
+  const description = document.getElementById('newRoomDesc').value.trim()
+  if (!name) return
+  await api('/admin/rooms', { method: 'POST', body: JSON.stringify({ name, description }) })
+  document.getElementById('newRoomName').value = ''
+  document.getElementById('newRoomDesc').value = ''
+  loadRooms()
+}
+
+async function fetchMessages() {
+  if (!state.currentRoom) return
+  try {
+    const data = await api(`/rooms/${state.currentRoom.id}/messages?since_id=${state.lastMsgId}`)
+    if (!data.messages.length) return
+    const box = document.getElementById('messagesBox')
+    const wasAtBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 60
+    data.messages.forEach(m => {
+      state.lastMsgId = Math.max(state.lastMsgId, m.id)
+      box.appendChild(renderMessage(m))
+    })
+    if (wasAtBottom) box.scrollTop = box.scrollHeight
+  } catch (e) { /* тихо игнорируем ошибки поллинга */ }
+}
+
+function renderMessage(m) {
+  const div = document.createElement('div')
+  div.className = 'msg-enter flex gap-3'
+  const isMe = m.user.id === state.user.id
+  const avatar = m.user.avatar_url
+    ? `<img src="${m.user.avatar_url}" class="w-8 h-8 rounded-full object-cover">`
+    : `<div class="w-8 h-8 rounded-full bg-ink-900 text-white flex items-center justify-center text-xs font-medium">${m.user.username[0].toUpperCase()}</div>`
+
+  let attachmentHtml = ''
+  if (m.attachment_url) {
+    if (m.attachment_type === 'image') attachmentHtml = `<img src="${m.attachment_url}" class="mt-2 rounded-xl max-w-xs max-h-64 object-cover cursor-pointer" onclick="window.open('${m.attachment_url}','_blank')">`
+    else if (m.attachment_type === 'video') attachmentHtml = `<video src="${m.attachment_url}" controls class="mt-2 rounded-xl max-w-xs max-h-64"></video>`
+  }
+
+  const ipHtml = (m.ip) ? `<span class="text-[10px] text-red-400 ml-2 font-mono">IP: ${m.ip}</span>` : ''
+
+  div.innerHTML = `
+    ${avatar}
+    <div class="flex-1 min-w-0">
+      <div class="flex items-baseline gap-2">
+        <span class="text-sm font-medium">${m.user.username}</span>
+        ${m.user.prefix ? `<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-ink-900 text-white">${m.user.prefix}</span>` : ''}
+        <span class="text-[10px] text-ink-400">${new Date(m.created_at + 'Z').toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+        ${ipHtml}
+      </div>
+      ${m.text ? `<div class="text-sm text-ink-700 mt-0.5 break-words">${m.text}</div>` : ''}
+      ${attachmentHtml}
+    </div>
+  `
+  return div
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div')
+  d.textContent = str
+  return d.innerHTML
+}
+
+// ---------- SEND MESSAGE ----------
+document.getElementById('msgInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+})
+document.getElementById('sendBtn').onclick = sendMessage
+
+async function sendMessage() {
+  const input = document.getElementById('msgInput')
+  const text = input.value.trim()
+  if (!text && !state.pendingAttachment) return
+  if (!state.currentRoom) return
+  try {
+    await api(`/rooms/${state.currentRoom.id}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        attachment_url: state.pendingAttachment?.url || null,
+        attachment_type: state.pendingAttachment?.type || null
+      })
+    })
+    input.value = ''
+    state.pendingAttachment = null
+    document.getElementById('attachPreview').classList.add('hidden')
+    fetchMessages()
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+document.getElementById('attachBtn').onclick = () => document.getElementById('fileInput').click()
+document.getElementById('fileInput').onchange = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  const fd = new FormData()
+  fd.append('file', file)
+  try {
+    const data = await api('/upload/attachment', { method: 'POST', body: fd })
+    state.pendingAttachment = { url: data.url, type: data.type }
+    const preview = document.getElementById('attachPreview')
+    preview.classList.remove('hidden')
+    preview.innerHTML = `Прикреплено: ${file.name} <button class="text-red-400 ml-2" onclick="state.pendingAttachment=null;document.getElementById('attachPreview').classList.add('hidden')">убрать</button>`
+  } catch (e) { alert(e.message) }
+}
+
+// ---------- PROFILE ----------
+document.getElementById('openProfile').onclick = () => {
+  document.getElementById('profileModal').classList.remove('hidden')
+  document.getElementById('profileModal').classList.add('flex')
+  document.getElementById('profileUsername').value = state.user.username
+  if (state.user.avatar_url) document.getElementById('profileAvatarPreview').src = state.user.avatar_url
+}
+document.getElementById('closeProfile').onclick = () => {
+  document.getElementById('profileModal').classList.add('hidden')
+  document.getElementById('profileModal').classList.remove('flex')
+}
+document.getElementById('changeAvatarBtn').onclick = () => document.getElementById('avatarInput').click()
+document.getElementById('avatarInput').onchange = async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  const fd = new FormData()
+  fd.append('file', file)
+  try {
+    const data = await api('/profile/avatar', { method: 'POST', body: fd })
+    state.user.avatar_url = data.avatar_url
+    document.getElementById('profileAvatarPreview').src = data.avatar_url
+    document.getElementById('myAvatar').src = data.avatar_url
+    document.getElementById('myAvatar').style.display = ''
+  } catch (e) { alert(e.message) }
+}
+document.getElementById('saveProfileBtn').onclick = async () => {
+  const username = document.getElementById('profileUsername').value.trim()
+  const msg = document.getElementById('profileMsg')
+  try {
+    await api('/profile', { method: 'PATCH', body: JSON.stringify({ username }) })
+    state.user.username = username
+    document.getElementById('myUsername').textContent = username
+    msg.textContent = 'Сохранено'
+    msg.className = 'text-xs text-center text-green-500'
+  } catch (e) {
+    msg.textContent = e.message
+    msg.className = 'text-xs text-center text-red-500'
+  }
+}
+
+// ---------- ADMIN: USERS ----------
+async function loadUsers() {
+  try {
+    const data = await api('/admin/users')
+    const list = document.getElementById('usersList')
+    list.innerHTML = ''
+    data.users.forEach(u => {
+      const card = document.createElement('div')
+      card.className = 'p-3 rounded-xl bg-base-100 text-sm space-y-2'
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-medium truncate">${escapeHtml(u.username)}</span>
+          ${u.banned ? '<span class="text-[10px] px-2 py-0.5 rounded-md bg-red-100 text-red-500">забанен</span>' : ''}
+        </div>
+        <input placeholder="Префикс" value="${escapeHtml(u.prefix || '')}" class="w-full px-2 py-1.5 text-xs rounded-lg bg-white outline-none" data-prefix-for="${u.id}">
+        <div class="flex gap-2">
+          <button class="flex-1 py-1.5 rounded-lg bg-ink-900 text-white text-xs" data-save-prefix="${u.id}">Сохранить префикс</button>
+          <button class="flex-1 py-1.5 rounded-lg ${u.banned ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'} text-xs" data-toggle-ban="${u.id}" data-banned="${u.banned}">${u.banned ? 'Разбанить' : 'Забанить'}</button>
+        </div>
+      `
+      list.appendChild(card)
+    })
+    list.querySelectorAll('[data-save-prefix]').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.savePrefix
+        const val = list.querySelector(`[data-prefix-for="${id}"]`).value
+        await api(`/admin/users/${id}/prefix`, { method: 'POST', body: JSON.stringify({ prefix: val }) })
+      }
+    })
+    list.querySelectorAll('[data-toggle-ban]').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.toggleBan
+        const banned = btn.dataset.banned === '1'
+        await api(`/admin/users/${id}/${banned ? 'unban' : 'ban'}`, { method: 'POST' })
+        loadUsers()
+      }
+    })
+  } catch {}
+}
+
+// ---------- THEME ----------
+document.getElementById('darkToggle').onclick = () => {
+  const body = document.getElementById('body')
+  const dark = body.classList.toggle('bg-ink-900')
+  body.classList.toggle('text-base-50')
+  body.classList.toggle('bg-base-50', !dark)
+  body.classList.toggle('text-ink-900', !dark)
+}
+
+tryAutoLogin()
+</script>
+</body>
+</html>
