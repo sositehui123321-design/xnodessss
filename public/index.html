@@ -25,7 +25,29 @@
   .fade { transition: all .2s ease; }
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-thumb { background: #d6d4cf; border-radius: 8px; }
-  .dark ::-webkit-scrollbar-thumb { background: #3a3937; }
+
+  /* ===== Тёмная тема ===== */
+  html.dark body { background-color: #161615; color: #f2f2f0; }
+  html.dark .bg-base-50 { background-color: #161615 !important; }
+  html.dark .bg-base-100 { background-color: #201f1e !important; }
+  html.dark .bg-base-200 { background-color: #2b2a28 !important; }
+  html.dark .border-base-200 { border-color: #2b2a28 !important; }
+  html.dark .bg-white { background-color: #201f1e !important; }
+  html.dark .bg-white\/70 { background-color: rgb(32 31 30 / 0.7) !important; }
+  html.dark .bg-white\/60 { background-color: rgb(32 31 30 / 0.6) !important; }
+  html.dark .bg-white\/40 { background-color: rgb(32 31 30 / 0.4) !important; }
+  html.dark .bg-ink-900 { background-color: #f2f2f0 !important; }
+  html.dark .bg-ink-900.text-white,
+  html.dark .bg-ink-900 { color: #161615 !important; }
+  html.dark button.bg-ink-900,
+  html.dark .bg-ink-900 * { color: #161615; }
+  html.dark .hover\:bg-ink-700:hover { background-color: #d6d4cf !important; }
+  html.dark .text-ink-900 { color: #f2f2f0 !important; }
+  html.dark .text-ink-700 { color: #d6d4cf !important; }
+  html.dark .text-ink-400 { color: #8a8884 !important; }
+  html.dark ::-webkit-scrollbar-thumb { background: #3a3937; }
+  html.dark input, html.dark textarea { color: #f2f2f0; }
+  html.dark input::placeholder, html.dark textarea::placeholder { color: #8a8884; }
 </style>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-base-50 text-ink-900 transition-colors duration-300" id="body">
@@ -195,7 +217,7 @@ document.getElementById('logoutBtn').onclick = () => {
 // ---------- APP ----------
 function enterApp() {
   document.getElementById('authScreen').classList.add('hidden')
-  document.getElementById('app').classList.remove('flex').classList.remove('hidden')
+  document.getElementById('app').classList.remove('hidden')
   document.getElementById('app').classList.add('flex')
   document.getElementById('myUsername').textContent = state.user.username
   document.getElementById('myRole').textContent = state.user.role === 'admin' ? 'Администратор' : 'Участник'
@@ -432,13 +454,15 @@ async function loadUsers() {
 }
 
 // ---------- THEME ----------
-document.getElementById('darkToggle').onclick = () => {
-  const body = document.getElementById('body')
-  const dark = body.classList.toggle('bg-ink-900')
-  body.classList.toggle('text-base-50')
-  body.classList.toggle('bg-base-50', !dark)
-  body.classList.toggle('text-ink-900', !dark)
+function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark)
+  localStorage.setItem('xnode_theme', dark ? 'dark' : 'light')
 }
+document.getElementById('darkToggle').onclick = () => {
+  applyTheme(!document.documentElement.classList.contains('dark'))
+}
+applyTheme(localStorage.getItem('xnode_theme') === 'dark' ||
+  (!localStorage.getItem('xnode_theme') && window.matchMedia('(prefers-color-scheme: dark)').matches))
 
 tryAutoLogin()
 </script>
